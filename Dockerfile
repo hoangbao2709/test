@@ -40,6 +40,21 @@ COPY --from=frontend-build /app/frontend/public frontend/public
 # Copy nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
 
+# Create entrypoint script to handle PORT variable
+RUN cat > /app/entrypoint.sh << 'EOF'
+#!/bin/sh
+# Railway provides PORT env var, default to 80 if not set
+PORT=${PORT:-80}
+
+# Update nginx to listen on Railway's PORT
+sed -i "s/listen 80/listen $PORT/g" /etc/nginx/nginx.conf
+sed -i "s/listen \[::\]:80/listen [::]:$PORT/g" /etc/nginx/nginx.conf
+
+# Start supervisord
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/dogzilla.conf
+EOF
+RUN chmod +x /app/entrypoint.sh
+
 # Create supervisord config to run all services
 RUN mkdir -p /var/log/supervisor && cat > /etc/supervisor/conf.d/dogzilla.conf << 'EOF'
 [supervisord]
@@ -59,7 +74,7 @@ directory=/app/frontend
 command=node server.js
 autostart=true
 autorestart=true
-environment=PORT=3000,HOSTNAME="0.0.0.0"
+environment=PORT="3000",HOSTNAME="0.0.0.0"
 stderr_logfile=/var/log/supervisor/frontend.err.log
 stdout_logfile=/var/log/supervisor/frontend.out.log
 
@@ -72,4 +87,4 @@ stdout_logfile=/var/log/supervisor/nginx.out.log
 EOF
 
 EXPOSE 80
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/dogzilla.conf"]
+CMD ["/app/entrypoint.sh"]
