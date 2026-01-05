@@ -17,14 +17,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend .
 RUN python manage.py collectstatic --noinput 2>/dev/null || true
 
-# === Stage 3: Final Runtime (Python + Node + Nginx + Supervisor) ===
-FROM node:20-slim
+# === Stage 3: Final Runtime (Python 3.12 + Node + Nginx + Supervisor) ===
+FROM python:3.12-slim
 WORKDIR /app
 ENV NODE_ENV=production PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
-# Install Python, nginx, supervisor
+# Install Node.js 20, nginx, supervisor
 RUN apt-get update && apt-get install -y \
-    python3 python3-pip nginx supervisor curl && \
+    curl nginx supervisor && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages & backend
@@ -40,51 +42,14 @@ COPY --from=frontend-build /app/frontend/public frontend/public
 # Copy nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Create entrypoint script to handle PORT variable
-RUN cat > /app/entrypoint.sh << 'EOF'
-#!/bin/sh
-# Railway provides PORT env var, default to 80 if not set
-PORT=${PORT:-80}
+# Copy supervisord config
+RUN mkdir -p /var/log/supervisor /etc/supervisor/conf.d
+COPY supervisord.conf /etc/supervisor/conf.d/dogzilla.conf
 
-# Update nginx to listen on Railway's PORT
-sed -i "s/listen 80/listen $PORT/g" /etc/nginx/nginx.conf
-sed -i "s/listen \[::\]:80/listen [::]:$PORT/g" /etc/nginx/nginx.conf
-
-# Start supervisord
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/dogzilla.conf
-EOF
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# Create supervisord config to run all services
-RUN mkdir -p /var/log/supervisor && cat > /etc/supervisor/conf.d/dogzilla.conf << 'EOF'
-[supervisord]
-nodaemon=true
-logfile=/var/log/supervisor/supervisord.log
-
-[program:backend]
-directory=/app/backend
-command=python3 -m daphne -b 127.0.0.1 -p 8000 backend.asgi:application
-autostart=true
-autorestart=true
-stderr_logfile=/var/log/supervisor/backend.err.log
-stdout_logfile=/var/log/supervisor/backend.out.log
-
-[program:frontend]
-directory=/app/frontend
-command=node server.js
-autostart=true
-autorestart=true
-environment=PORT="3000",HOSTNAME="0.0.0.0"
-stderr_logfile=/var/log/supervisor/frontend.err.log
-stdout_logfile=/var/log/supervisor/frontend.out.log
-
-[program:nginx]
-command=/usr/sbin/nginx -g "daemon off;"
-autostart=true
-autorestart=true
-stderr_logfile=/var/log/supervisor/nginx.err.log
-stdout_logfile=/var/log/supervisor/nginx.out.log
-EOF
-
 EXPOSE 80
-CMD ["/app/entrypoint.sh"]
+ENTRYPOINT []
+CMD ["/bin/sh", "/app/entrypoint.sh"]
