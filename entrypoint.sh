@@ -10,5 +10,10 @@ echo "Starting services on port $PORT..."
 sed -i "s/listen 80/listen $PORT/g" /etc/nginx/nginx.conf
 sed -i "s/listen \[::\]:80/listen [::]:$PORT/g" /etc/nginx/nginx.conf
 
+# Run Django migrations
+echo "Running Django migrations..."
+cd /app/backend
+python manage.py migrate --noinput
+
 # Start supervisord
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/dogzilla.conf
