@@ -1,6 +1,11 @@
 # === Stage 1: Build Frontend (Next.js) ===
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
+
+# Set build-time env vars để Next.js bake vào static files
+ENV NEXT_PUBLIC_API_BASE=""
+ENV NEXT_PUBLIC_DOGZILLA_BASE=""
+
 COPY frontend/package*.json ./
 RUN npm install --frozen-lockfile
 COPY frontend .
