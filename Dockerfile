@@ -33,11 +33,10 @@ COPY --from=backend-build /usr/local/bin /usr/local/bin
 COPY --from=backend-build /app/backend backend
 
 # Copy frontend (built app)
-COPY frontend/package*.json frontend/
 COPY --from=frontend-build /app/frontend/.next frontend/.next
 COPY --from=frontend-build /app/frontend/public frontend/public
-COPY --from=frontend-build /app/frontend/next.config.ts frontend/ 2>/dev/null || true
-COPY --from=frontend-build /app/frontend/tsconfig.json frontend/ 2>/dev/null || true
+COPY --from=frontend-build /app/frontend/next.config.ts frontend/next.config.ts
+COPY --from=frontend-build /app/frontend/package*.json frontend/
 RUN cd frontend && npm install --production
 
 # Create supervisord config
