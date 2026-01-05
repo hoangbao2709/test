@@ -1,6 +1,9 @@
 // app/lib/robotApi.ts
+// Nếu NEXT_PUBLIC_API_BASE rỗng hoặc không set, dùng relative path (cùng domain)
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_BASE === undefined || process.env.NEXT_PUBLIC_API_BASE === ""
+    ? "" // Relative path - API đi qua nginx proxy cùng domain
+    : process.env.NEXT_PUBLIC_API_BASE;
 
 export const DEFAULT_DOG_SERVER =
   process.env.NEXT_PUBLIC_DOGZILLA_BASE || "http://127.0.0.1:9000";
@@ -9,9 +12,6 @@ export const robotId = "robot-a";
 
 // Wrapper chung
 async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
-  if (!API_BASE) {
-    throw new Error("API_BASE is not configured");
-  }
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,

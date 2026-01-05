@@ -47,14 +47,10 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const api = process.env.NEXT_PUBLIC_API_BASE;
+      const api = process.env.NEXT_PUBLIC_API_BASE === undefined || process.env.NEXT_PUBLIC_API_BASE === ""
+        ? ""
+        : process.env.NEXT_PUBLIC_API_BASE;
       console.log(">>> API BASE =", api);
-
-      if (!api) {
-        console.error("NEXT_PUBLIC_API_BASE is missing");
-        setError("Internal config error.");
-        return;
-      }
 
       const url = `${api}/api/auth/register/`;
       console.log(">>> CALLING:", url);

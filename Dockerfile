@@ -17,14 +17,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend .
 RUN python manage.py collectstatic --noinput 2>/dev/null || true
 
-# === Stage 3: Final Runtime (Python + Node + Supervisord) ===
+# === Stage 3: Final Runtime (Python + Node + Nginx + Supervisor) ===
 FROM node:20-slim
 WORKDIR /app
 ENV NODE_ENV=production PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
-# Install Python, supervisord, and build tools
+# Install Python, nginx, supervisor
 RUN apt-get update && apt-get install -y \
-    python3 python3-pip python3-dev supervisor curl build-essential && \
+    python3 python3-pip nginx supervisor curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages & backend
@@ -32,14 +32,16 @@ COPY --from=backend-build /usr/local/lib/python3.12/site-packages /usr/local/lib
 COPY --from=backend-build /usr/local/bin /usr/local/bin
 COPY --from=backend-build /app/backend backend
 
-# Copy frontend (built app)
+# Copy frontend
 COPY --from=frontend-build /app/frontend/.next frontend/.next
 COPY --from=frontend-build /app/frontend/public frontend/public
-COPY --from=frontend-build /app/frontend/next.config.ts frontend/next.config.ts
 COPY --from=frontend-build /app/frontend/package*.json frontend/
 RUN cd frontend && npm install --production
 
-# Create supervisord config
+# Copy nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Create supervisord config to run all services
 RUN mkdir -p /var/log/supervisor && cat > /etc/supervisor/conf.d/dogzilla.conf << 'EOF'
 [supervisord]
 nodaemon=true
@@ -47,7 +49,7 @@ logfile=/var/log/supervisor/supervisord.log
 
 [program:backend]
 directory=/app/backend
-command=python3 -m daphne -b 0.0.0.0 -p 8000 backend.asgi:application
+command=python3 -m daphne -b 127.0.0.1 -p 8000 backend.asgi:application
 autostart=true
 autorestart=true
 stderr_logfile=/var/log/supervisor/backend.err.log
@@ -55,12 +57,20 @@ stdout_logfile=/var/log/supervisor/backend.out.log
 
 [program:frontend]
 directory=/app/frontend
-command=npm start
+command=npm start -- -p 3000
 autostart=true
 autorestart=true
+environment=PORT=3000
 stderr_logfile=/var/log/supervisor/frontend.err.log
 stdout_logfile=/var/log/supervisor/frontend.out.log
+
+[program:nginx]
+command=/usr/sbin/nginx -g "daemon off;"
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/supervisor/nginx.err.log
+stdout_logfile=/var/log/supervisor/nginx.out.log
 EOF
 
-EXPOSE 3000 8000
+EXPOSE 80
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/dogzilla.conf"]

@@ -16,7 +16,9 @@ export type Device = {
 import { RobotAPI } from "./../lib/robotApi";
 
 const BACKEND_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_BASE === undefined || process.env.NEXT_PUBLIC_API_BASE === ""
+    ? ""
+    : process.env.NEXT_PUBLIC_API_BASE;
 
 // Base cho các API điều khiển robot (Django app "control")
 const CONTROL_BASE = `${BACKEND_BASE}`;

@@ -3,8 +3,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 // Để thống nhất với Dashboard: dùng chung BACKEND_BASE
+// Nếu rỗng, dùng relative path (cùng domain qua nginx)
 const BACKEND_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_BASE === undefined || process.env.NEXT_PUBLIC_API_BASE === ""
+    ? ""
+    : process.env.NEXT_PUBLIC_API_BASE;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);

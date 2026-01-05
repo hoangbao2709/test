@@ -1,0 +1,53 @@
+# Git
+.git
+.gitignore
+
+# Dependencies
+node_modules
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Build outputs
+.next
+build
+dist
+*.egg-info
+
+# Environment
+.env.local
+.env.*.local
+venv
+env
+
+# Logs
+*.log
+logs
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.yml
+Dockerfile.robot
+
+# Other
+README.md
+*.md
+.eslintrc.json
+1_OpenCV
+2_Control
+3_AI_Visual
+mô phỏng thuật toán
+robot_client

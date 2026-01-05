@@ -50,7 +50,9 @@ type LidarPose = {
 };
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_BASE === undefined || process.env.NEXT_PUBLIC_API_BASE === ""
+    ? ""
+    : process.env.NEXT_PUBLIC_API_BASE;
 const robotId = "robot-a";
 const CONTROL_PREFIX = "/control/api/robots";
 
