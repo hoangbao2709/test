@@ -32,11 +32,10 @@ COPY --from=backend-build /usr/local/lib/python3.12/site-packages /usr/local/lib
 COPY --from=backend-build /usr/local/bin /usr/local/bin
 COPY --from=backend-build /app/backend backend
 
-# Copy frontend
-COPY --from=frontend-build /app/frontend/.next frontend/.next
+# Copy frontend - ALL necessary files for Next.js to run
+COPY --from=frontend-build /app/frontend/.next/standalone ./
+COPY --from=frontend-build /app/frontend/.next/static frontend/.next/static
 COPY --from=frontend-build /app/frontend/public frontend/public
-COPY --from=frontend-build /app/frontend/package*.json frontend/
-RUN cd frontend && npm install --production
 
 # Copy nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
@@ -57,10 +56,10 @@ stdout_logfile=/var/log/supervisor/backend.out.log
 
 [program:frontend]
 directory=/app/frontend
-command=npm start -- -p 3000
+command=node server.js
 autostart=true
 autorestart=true
-environment=PORT=3000
+environment=PORT=3000,HOSTNAME="0.0.0.0"
 stderr_logfile=/var/log/supervisor/frontend.err.log
 stdout_logfile=/var/log/supervisor/frontend.out.log
 
