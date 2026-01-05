@@ -36,8 +36,8 @@ COPY --from=backend-build /app/backend backend
 
 # Copy frontend - ALL necessary files for Next.js to run
 COPY --from=frontend-build /app/frontend/.next/standalone ./
-COPY --from=frontend-build /app/frontend/.next/static frontend/.next/static
-COPY --from=frontend-build /app/frontend/public frontend/public
+COPY --from=frontend-build /app/frontend/.next/static .next/static
+COPY --from=frontend-build /app/frontend/public public
 
 # Copy nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
