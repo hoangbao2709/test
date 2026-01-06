@@ -17,6 +17,8 @@ import {
   RobotAPI,
   DEFAULT_DOG_SERVER,
   robotId,
+  createRobotLocalAPI,
+  normalizeRobotBase,
 } from "@/app/lib/robotApi";
 
 import {
@@ -47,31 +49,14 @@ export default function RemoteView({
 }) {
   const searchParams = useSearchParams();
   const ipParam = searchParams.get("ip");
-  const DOG_SERVER = ipParam || DEFAULT_DOG_SERVER;
+  const DOG_SERVER = normalizeRobotBase(ipParam || DEFAULT_DOG_SERVER);
+  
+  // Create local API for direct robot connection
+  const robotLocal = useMemo(() => createRobotLocalAPI(DOG_SERVER), [DOG_SERVER]);
 
   const isCheckingRef = useRef(false);
 
-  const lidarUrl = useMemo(() => {
-    try {
-      const url = new URL(DOG_SERVER);
-      const host = url.hostname;
-      const port = url.port;
-
-      const isCloudflare = host.endsWith("trycloudflare.com");
-      if (isCloudflare) return `${url.origin.replace(/\/$/, "")}/lidar/`;
-
-      // Robot có Caddy proxy port 9002 cho lidar
-      // Không dùng port 8080 vì đó là local dev server
-      if (port === "9002") {
-        return `${url.protocol}//${host}:9002/lidar/`;
-      }
-      
-      // Default: append /lidar/ to robot URL
-      return `${url.origin.replace(/\/$/, "")}/lidar/`;
-    } catch {
-      return "";
-    }
-  }, [DOG_SERVER]);
+  const lidarUrl = useMemo(() => robotLocal.getLidarUrl(), [robotLocal]);
 
   const [isRunning, setIsRunning] = useState(false);
   const [speed, setSpeed] = useState<"slow" | "normal" | "high">("normal");
@@ -183,57 +168,39 @@ export default function RemoteView({
     let stop = false;
     let iv: ReturnType<typeof setInterval> | null = null;
 
-    const checkAndConnect = async () => {
-      if (stop) return;
-      if (isCheckingRef.current) return;
-      isCheckingRef.current = true;
+const normalizeBase = (s: string) => {
+  const t = s.trim();
+  if (t.startsWith("http://") || t.startsWith("https://")) return t.replace(/\/+$/, "");
+  return `https://${t.replace(/\/+$/, "")}`; // local IP dùng https qua Caddy
+};
 
-      try {
-        const res = await RobotAPI.connect(DOG_SERVER);
-        if (stop) return;
+const DOG_SERVER = normalizeBase(ipParam || DEFAULT_DOG_SERVER);
 
-        if (res?.connected) {
-          setConnected(true);
-          setConnectError(null);
-          appendLog(`[CONNECT] Connected to ${DOG_SERVER}`);
-          if (!hasResetBody.current) {
-            try {
-              await resetBody();
-            } catch (e) {
-              console.error("resetBody error:", e);
-            }
-            hasResetBody.current = true;
-          }
+const checkAndConnect = async () => {
+  if (stop) return;
+  if (isCheckingRef.current) return;
+  isCheckingRef.current = true;
 
-          if (!streamUrl) {
-            try {
-              const f = await RobotAPI.fpv();
-              if (!stop) setStreamUrl(f?.stream_url || null);
-            } catch (e) {
-              console.error("FPV error:", e);
-              if (!stop) {
-                setConnectError("Không lấy được stream_url từ backend");
-              }
-            }
-          }
-        } else {
-          setConnected(false);
-          const msg = res?.error || "Không kết nối được tới Dogzilla server";
-          appendLog(`[CONNECT ERROR] ${msg}`);
-          setConnectError(
-            res?.error || "Không kết nối được tới Dogzilla server"
-          );
-        }
-      } catch (e: any) {
-        console.error("Connect error:", e);
-        if (!stop) {
-          setConnected(false);
-          setConnectError(e?.message || "Lỗi kết nối");
-        }
-      } finally {
-        isCheckingRef.current = false;
-      }
-    };
+  try {
+    const data = await robotLocal.status();
+    
+    setConnected(true);
+    setConnectError(null);
+    appendLog(`[CONNECT] Connected to ${DOG_SERVER}`);
+
+    // Set stream URL to robot camera endpoint
+    if (!streamUrl) {
+      setStreamUrl(robotLocal.getVideoFeed());
+    }
+  } catch (e: any) {
+    setConnected(false);
+    setConnectError(e?.message || "Lỗi kết nối");
+    appendLog(`[CONNECT ERROR] ${e?.message || String(e)}`);
+  } finally {
+    isCheckingRef.current = false;
+  }
+};
+
 
     checkAndConnect();
     iv = setInterval(checkAndConnect, 2000);
@@ -250,7 +217,7 @@ export default function RemoteView({
     let stop = false;
     const iv = setInterval(async () => {
       try {
-        const s: any = await RobotAPI.status();
+        const s: any = await robotLocal.status();
         if (!stop && typeof s?.fps === "number") {
           setFps(s.fps);
         }
@@ -269,13 +236,8 @@ export default function RemoteView({
   const changeSpeed = useCallback(
     async (m: "slow" | "normal" | "high") => {
       setSpeed(m);
-      try {
-        const res: any = await RobotAPI.speed(m);
-        appendLog(res?.log || `[SPEED] → ${m.toUpperCase()}`);
-      } catch (e: any) {
-        console.error("Speed error:", e);
-        appendLog(`[SPEED ERROR] ${e?.message || String(e)}`);
-      }
+      // Robot doesn't support speed endpoint yet
+      appendLog(`[SPEED] → ${m.toUpperCase()} (local setting only)`);
     },
     [appendLog]
   );
@@ -283,12 +245,9 @@ export default function RemoteView({
   // ==== lidar toggle ====
   const handleToggleLidar = useCallback(async () => {
     const next = !isRunning;
-    try {
-      const res: any = await RobotAPI.lidar(next ? "start" : "stop");
-      appendLog(
-        res?.log || `[LIDAR] ${next ? "start" : "stop"} (frontend toggle)`
-      );
-      setIsRunning(next);
+    // Robot doesn't support lidar control endpoint yet
+    appendLog(`[LIDAR] ${next ? "start" : "stop"} (local setting only)`);
+    setIsRunning(next);
     } catch (e: any) {
       console.error("Lidar error:", e);
       appendLog(`[LIDAR ERROR] ${e?.message || String(e)}`);
@@ -300,17 +259,8 @@ export default function RemoteView({
   const handleToggleStabilizing = useCallback(async () => {
     const next = !stabilizing;
     setStabilizing(next);
-    try {
-      const res: any = await RobotAPI.stabilizingMode(next ? "on" : "off");
-      appendLog(
-        res?.log ||
-          `[STABILIZING] ${next ? "ON" : "OFF"} (stabilizing_mode command)`
-      );
-    } catch (e: any) {
-      console.error("Stabilizing error:", e);
-      appendLog(`[STABILIZING ERROR] ${e?.message || String(e)}`);
-      setStabilizing((prev) => !prev);
-    }
+    // Robot doesn't support stabilizing mode endpoint yet
+    appendLog(`[STABILIZING] ${next ? "ON" : "OFF"} (local setting only)`);
   }, [stabilizing, appendLog]);
 
 
@@ -320,11 +270,11 @@ export default function RemoteView({
       const { vx, vy, active } = joyRef.current;
       if (!active) return;
 
-      RobotAPI.move({ vx, vy, vz: 0, rx: 0, ry: 0, rz: 0 }).catch(() => {});
+      robotLocal.move({ vx, vy, vz: 0, rx: 0, ry: 0, rz: 0 }).catch(() => {});
     }, 80);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [robotLocal]);
 
   const onJoyChange = useCallback(
     ({ angleDeg, power }: { angleDeg: number; power: number }) => {
@@ -343,7 +293,7 @@ export default function RemoteView({
   const onJoyRelease = useCallback(async () => {
     joyRef.current = { vx: 0, vy: 0, active: false };
     try {
-      await RobotAPI.move({
+      await robotLocal.move({
         vx: 0,
         vy: 0,
         vz: 0,
@@ -354,11 +304,11 @@ export default function RemoteView({
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [robotLocal]);
 
   // ==== quay trái / phải + stop ====
   const stopMove = useCallback(() => {
-    RobotAPI.move({ vx: 0, vy: 0, vz: 0, rx: 0, ry: 0, rz: 0 })
+    robotLocal.move({ vx: 0, vy: 0, vz: 0, rx: 0, ry: 0, rz: 0 })
       .then((res: any) => {
         appendLog(res?.log || "[MOVE] stop");
       })
@@ -373,7 +323,7 @@ export default function RemoteView({
     if (lefting) {
       stopMove();
     } else {
-      RobotAPI.move({
+      robotLocal.move({
         vx: 0,
         vy: 0,
         vz: 0,
@@ -397,7 +347,7 @@ export default function RemoteView({
     if (righting) {
       stopMove();
     } else {
-      RobotAPI.move({
+      robotLocal.move({
         vx: 0,
         vy: 0,
         vz: 0,
@@ -425,15 +375,9 @@ export default function RemoteView({
         if (bodyTimer.current) clearTimeout(bodyTimer.current);
 
         bodyTimer.current = setTimeout(async () => {
-          try {
-            const res: any = await RobotAPI.body(next);
-            const msg =
-              res?.log ||
-              `[BODY] tx=${next.tx}, ty=${next.ty}, tz=${next.tz}, rx=${next.rx}, ry=${next.ry}, rz=${next.rz}`;
-            appendLog(msg);
-          } catch (e: any) {
-            appendLog(`[BODY ERROR] ${e?.message || String(e)}`);
-          }
+          // Robot doesn't support body control endpoint yet
+          const msg = `[BODY] tx=${next.tx}, ty=${next.ty}, tz=${next.tz}, rx=${next.rx}, ry=${next.ry}, rz=${next.rz} (local setting only)`;
+          appendLog(msg);
         }, 150);
 
         return next;
@@ -456,13 +400,8 @@ export default function RemoteView({
     if (bodyTimer.current) clearTimeout(bodyTimer.current);
     setSliders(zero);
 
-    RobotAPI.body(zero)
-      .then((res: any) => {
-        appendLog(res?.log || "[BODY] reset to center");
-      })
-      .catch((e: any) => {
-        appendLog(`[BODY ERROR] reset: ${e?.message || String(e)}`);
-      });
+    // Robot doesn't support body control endpoint yet
+    appendLog("[BODY] reset (local setting only)");
   }, [appendLog]);
 
 
@@ -703,10 +642,7 @@ export default function RemoteView({
                     key={b}
                     label={b.replaceAll("_", " ")}
                         onClick={() => {
-                          appendLog(`[POSTURE] ${b}`);
-                          RobotAPI.posture(b).catch((e: any) =>
-                            appendLog(`[POSTURE ERROR] ${b}: ${e?.message || String(e)}`)
-                          );
+                          appendLog(`[POSTURE] ${b} (not supported yet)`);
                         }}
                     variant="default"
                   />
@@ -721,10 +657,7 @@ export default function RemoteView({
                     key={b}
                     label={b.replaceAll("_", " ")}
                         onClick={() => {
-                          appendLog(`[AXIS] ${b}`);
-                          RobotAPI.behavior(b).catch((e: any) =>
-                            appendLog(`[AXIS ERROR] ${b}: ${e?.message || String(e)}`)
-                          );
+                          appendLog(`[AXIS] ${b} (not supported yet)`);
                         }}
                     variant="default"
                   />
@@ -741,10 +674,7 @@ export default function RemoteView({
                     key={`${b}-${i}`}
                     label={b.replaceAll("_", " ")}
                     onClick={() => {
-                      appendLog(`[BEHAVIOR] ${b}`);
-                      RobotAPI.behavior(b).catch((e: any) =>
-                        appendLog(`[BEHAVIOR ERROR] ${b}: ${e?.message || String(e)}`)
-                      );
+                      appendLog(`[BEHAVIOR] ${b} (not supported yet)`);
                     }}
                     variant="default"
                   />

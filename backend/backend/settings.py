@@ -45,13 +45,11 @@ LOGGING = {
 SECRET_KEY = os.getenv("SECRET_KEY", 'django-insecure-cvbsxx-n%x%^40af+8^9-h+mbry(76cia18(sykids23d9=0b%')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+# Temporarily enable DEBUG to see detailed errors
+DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
 # Allow Railway domains (.railway.app), localhost, và custom domains
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost,.railway.app").split(",")
-# Wildcard cho Railway subdomains
-if not DEBUG:
-    ALLOWED_HOSTS.append("*")
+ALLOWED_HOSTS = ["*"]  # Allow all hosts for now
 
 # Application definition
 
