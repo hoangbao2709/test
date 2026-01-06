@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.http import JsonResponse
 
 def health_check(request):
@@ -15,6 +15,19 @@ def debug_info(request):
         "request_method": request.method,
     })
 
+def catch_all(request, path=''):
+    return JsonResponse({
+        "error": "Not found",
+        "path": request.path,
+        "method": request.method,
+        "available_urls": [
+            "/health",
+            "/debug", 
+            "/control/api/robots/",
+            "/api/auth/",
+        ]
+    }, status=404)
+
 urlpatterns = [
     path('', health_check),
     path('health', health_check),
@@ -22,4 +35,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('control/', include('control.urls')),
     path("api/auth/", include("authapp.urls")),
+    re_path(r'^.*$', catch_all),  # Catch-all at the end
 ]
