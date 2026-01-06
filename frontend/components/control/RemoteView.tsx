@@ -60,12 +60,13 @@ export default function RemoteView({
       const isCloudflare = host.endsWith("trycloudflare.com");
       if (isCloudflare) return `${url.origin.replace(/\/$/, "")}/lidar/`;
 
-      if (port === "9000" || port === "") {
-        return `${url.protocol}//${host}:8080`;
-      }
+      // Robot có Caddy proxy port 9002 cho lidar
+      // Không dùng port 8080 vì đó là local dev server
       if (port === "9002") {
         return `${url.protocol}//${host}:9002/lidar/`;
       }
+      
+      // Default: append /lidar/ to robot URL
       return `${url.origin.replace(/\/$/, "")}/lidar/`;
     } catch {
       return "";
