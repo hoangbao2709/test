@@ -157,6 +157,11 @@ export default function RemoteView({
       try {
         const res = await fetch(lidarUrl, { cache: "no-store" });
         if (stop) return;
+        // Nếu 404 (không có lidar) thì đánh dấu không running, không phải lỗi
+        if (res.status === 404) {
+          setIsRunning(false);
+          return;
+        }
         setIsRunning(res.ok);
       } catch {
         if (stop) return;

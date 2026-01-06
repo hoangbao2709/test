@@ -177,6 +177,11 @@ export default function HeaderControl({
     async function fetchPose() {
       try {
         const res = await fetch(poseUrl, { cache: "no-store" });
+        // Nếu 404 thì robot không có lidar, skip
+        if (res.status === 404) {
+          if (!stop) setLocationText("-");
+          return;
+        }
         if (!res.ok) throw new Error(`Pose HTTP ${res.status}`);
         const raw = await res.json();
         if (stop) return;
