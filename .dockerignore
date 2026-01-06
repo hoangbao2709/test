@@ -46,8 +46,24 @@ Dockerfile.robot
 README.md
 *.md
 .eslintrc.json
+
+# Large demo/tutorial folders - không cần trong production
 1_OpenCV
 2_Control
+3_AI_Visual
+mô phỏng thuật toán
+
+# Local test files
+test.py
+dog_forward.py
+slam_live_map.py
+stabilizing_sim.py
+thuvien.py
+*.docx
+
+# Old server code
+dogzilla_server
+robot_client
 3_AI_Visual
 mô phỏng thuật toán
 robot_client

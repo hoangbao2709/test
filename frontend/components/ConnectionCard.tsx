@@ -45,23 +45,19 @@ export default function ConnectionCard({
     ? "bg-gradient-to-r from-sky-500/20 via-fuchsia-500/15 to-pink-500/20 border border-sky-400/40"
     : "bg-white/10 border border-white/10";
 
-  // Helper: build base URL tới robot
+
 function buildRobotBase() {
   let base = device.ip.trim();
 
-  // Nếu đã có http/https -> giữ nguyên, chỉ bỏ dấu / ở cuối
+  // Nếu đã có protocol (http:// hoặc https://), giữ nguyên
   if (base.startsWith("http://") || base.startsWith("https://")) {
     return base.replace(/\/+$/, "");
   }
 
-  // Nếu user đã nhập ip:port thì không thêm :9000 nữa
-  if (base.includes(":")) {
-    return `http://${base.replace(/\/+$/, "")}`;
-  }
-
-  // Mặc định: chỉ có IP -> tự thêm port 9000
-  return `http://${base}:9000`;
+  // Mặc định dùng HTTPS cho cả local và production (Caddy port 443)
+  return `https://${base.replace(/\/+$/, "")}`;
 }
+
 
 
   // Poll /status của từng robot
@@ -70,6 +66,7 @@ function buildRobotBase() {
 
     async function fetchStatus() {
       const base = buildRobotBase();
+      console.log(base);
       try {
         const res = await fetch(`${base}/status`, { cache: "no-store" });
         if (!alive) return;

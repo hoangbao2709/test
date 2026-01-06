@@ -3,6 +3,10 @@
 
 from typing import Dict, Any
 import requests
+import urllib3
+
+# Disable SSL warnings khi dùng verify=False
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from django.conf import settings
 from ..models import Robot
@@ -52,7 +56,7 @@ class ROSClient:
         """
         base = self._get_base_url()
         url = f"{base}{path}"
-        resp = self.session.get(url, timeout=self.timeout)
+        resp = self.session.get(url, timeout=self.timeout, verify=False)
         resp.raise_for_status()
         return resp.json()
 
@@ -67,7 +71,7 @@ class ROSClient:
         """
         base = self._get_base_url()
         url = f"{base}/control"
-        resp = self.session.post(url, json=payload, timeout=self.timeout)
+        resp = self.session.post(url, json=payload, timeout=self.timeout, verify=False)
         # Nếu muốn log:
         try:
             text = resp.text[:200]
@@ -93,7 +97,7 @@ class ROSClient:
 
         url = f"{addr_clean}/health"
         try:
-            resp = self.session.get(url, timeout=self.timeout)
+            resp = self.session.get(url, timeout=self.timeout, verify=False)
             ok = resp.ok
             print(f"[ROSClient] connect() ping {url} -> {resp.status_code}")
             return {"connected": ok, "addr": addr_clean}

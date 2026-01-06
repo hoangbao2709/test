@@ -153,7 +153,8 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOW_ALL_ORIGINS = True  # hoặc cấu hình domain cụ thể
+# CORS handled by Caddy/Nginx - không cần Django CORS middleware
+# CORS_ALLOW_ALL_ORIGINS = True
 
 ASGI_APPLICATION = 'backend.asgi.application'
 CHANNEL_LAYERS = {

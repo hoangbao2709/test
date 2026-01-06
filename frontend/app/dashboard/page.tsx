@@ -187,12 +187,13 @@ const handleConnectDevice = async (device: Device) => {
 
   let dogzillaAddr = device.ip.trim();
 
-  // Nếu không phải URL đầy đủ thì coi là IP nội bộ -> thêm http + port 9000
+  // Nếu không phải URL đầy đủ thì thêm protocol
   if (
     !dogzillaAddr.startsWith("http://") &&
     !dogzillaAddr.startsWith("https://")
   ) {
-    dogzillaAddr = `http://${dogzillaAddr}:9000`;
+    // Mặc định HTTPS (Caddy port 443)
+    dogzillaAddr = `https://${dogzillaAddr}`;
   }
 
   const isCloudflare =
