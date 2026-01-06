@@ -14,7 +14,6 @@ import HeaderControl from "@/components/header_control";
 import MouselookPad from "@/components/MouselookPad";
 import { useGamepadMove } from "@/app/lib/useGamepadMove";
 import {
-  RobotAPI,
   DEFAULT_DOG_SERVER,
   robotId,
   createRobotLocalAPI,
