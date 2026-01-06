@@ -28,8 +28,7 @@ WORKDIR /app
 ENV NODE_ENV=production PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 # Install Node.js 20, nginx, supervisor
-RUN apt-get update && apt-get install -y \
-    curl nginx supervisor && \
+RUN apt-get update && apt-get install -y curl nginx supervisor && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*

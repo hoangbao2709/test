@@ -247,10 +247,6 @@ const checkAndConnect = async () => {
     // Robot doesn't support lidar control endpoint yet
     appendLog(`[LIDAR] ${next ? "start" : "stop"} (local setting only)`);
     setIsRunning(next);
-    } catch (e: any) {
-      console.error("Lidar error:", e);
-      appendLog(`[LIDAR ERROR] ${e?.message || String(e)}`);
-    }
   }, [isRunning, appendLog]);
 
 
